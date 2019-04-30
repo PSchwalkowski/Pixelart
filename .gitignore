@@ -1,1 +1,4 @@
 /vendor/
+
+# public directory is used for local tests
+/public/
