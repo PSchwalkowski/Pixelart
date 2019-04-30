@@ -1,0 +1,17 @@
+{
+    "name": "ps/pixelart",
+    "description": "PHP image to pixelart converter",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Paweł Schwałkowski",
+            "email": "p.schwalkowski@gmail.com"
+        }
+    ],
+    "require": {},
+    "autoload": {
+      "psr-4": {
+        "PS\\": "src/"
+      }
+    }
+}
