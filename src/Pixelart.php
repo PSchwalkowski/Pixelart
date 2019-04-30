@@ -32,7 +32,7 @@ class Pixelart {
 	/**
 	 * @var array
 	 */
-	protected $cropPartsSizes = [
+	protected $cropPartsAmount = [
 		'horizontal' => 0,
 		'vertical' => 0,
 	];
@@ -68,10 +68,10 @@ class Pixelart {
 	/**
 	 * @param string $filepath
 	 *
-	 * @return string
+	 * @return void
 	 * @throws Exception
 	 */
-	public function pixelize(string $filepath): string {
+	public function pixelize(string $filepath, string $savePathAndName) {
 		if (!$this->checkIfFileExists($filepath)) {
 			throw new Exception('File "' . $filepath . '" could not be found.');
 		}
@@ -79,13 +79,12 @@ class Pixelart {
 			throw new Exception('Given file extension is not supported');
 		}
 
-		$this->setImageResourceFromPath($filepath)->setImageResourceSize($filepath)->setCropPartSizes();
+		$this->setImageResourceFromPath($filepath)->setImageResourceSize($filepath)->setCropPartsAmount();
 
-		echo '<pre>';
-		print_r($this);
-		echo '</pre>';
-		
-		return '';
+		$colors = $this->cropImageAndGetColors();
+		$image = $this->createImageFromColorsInformations($colors);
+
+		imagejpeg($image, $savePathAndName);
 	}
 
 	/**
@@ -148,14 +147,111 @@ class Pixelart {
 	}
 
 	/**
-	 * @return $this
+	 * @return Pixelart
 	 */
-	private function setCropPartSizes() {
-		$this->cropPartsSizes = [
-			'horizontal' => $this->imageSize['width'] / $this->squareSize,
-			'vertical' => $this->imageSize['height'] / $this->squareSize,
+	protected function setCropPartsAmount(): self {
+		$this->cropPartsAmount = [
+			'horizontal' => (int) $this->imageSize['width'] / $this->squareSize,
+			'vertical' => (int) $this->imageSize['height'] / $this->squareSize,
 		];
 
 		return $this;
+	}
+
+	/**
+	 * @return array
+	 */
+	protected function cropImageAndGetColors(): array {
+		$colors = [];
+		for ($i = 0; $i < $this->cropPartsAmount['vertical']; $i++) {
+			for ($j = 0; $j < $this->cropPartsAmount['horizontal']; $j++) {
+				$croppedImage = imagecrop($this->image, [
+					'x' => $j * $this->squareSize,
+					'y' => $i * $this->squareSize,
+					'width' => $this->squareSize,
+					'height' => $this->squareSize,
+				]);
+
+				$colors[$i][$j] = $this->getMainColorFromImage($croppedImage);
+			}
+		}
+
+		return $colors;
+	}
+
+	/**
+	 * @param $image
+	 *
+	 * @return array
+	 */
+	protected function getMainColorFromImage($image): array {
+		$colors = [];
+		for ($i = 0; $i < $this->squareSize; $i++) {
+			for ($j = 0; $j < $this->squareSize; $j++) {
+				$colorIndex = imagecolorat($image, $i, $j);
+
+				if (!isset($colors[$colorIndex])) {
+					$colors[$colorIndex] = 1;
+				} else {
+					$colors[$colorIndex] += 1;
+				}
+			}
+		}
+
+		$colorIndex = array_search(
+			max($colors),
+			$colors
+		);
+
+		return [
+			'red' => ($colorIndex >> 16) & 0xFF,
+			'green' => ($colorIndex >> 8) & 0xFF,
+			'blue' => $colorIndex & 0xFF,
+		];
+	}
+
+	/**
+	 * @param array $colors
+	 *
+	 * @return false|resource
+	 */
+	protected function createImageFromColorsInformations(array $colors) {
+		$image = imagecreatetruecolor($this->imageSize['width'], $this->imageSize['height']);
+
+		foreach ($colors as $row => $colorsRow) {
+			foreach ($colorsRow as $col => $color) {
+				$imagePart = imagecreatetruecolor($this->squareSize, $this->squareSize);
+
+				imagefilledrectangle(
+					$imagePart,
+					0,
+					0,
+					$this->squareSize,
+					$this->squareSize,
+					imagecolorallocate(
+						$imagePart,
+						$color['red'],
+						$color['green'],
+						$color['blue']
+					)
+				);
+
+				imagecopymerge(
+					$image,
+					$imagePart,
+					$col * $this->squareSize,
+					$row * $this->squareSize,
+					0,
+					0,
+					$this->squareSize,
+					$this->squareSize,
+					100
+				);
+
+				imagedestroy($imagePart);
+			}
+		}
+
+		return $image;
 	}
 }
