@@ -9,7 +9,7 @@ class Pixelart {
 	/**
 	 * List of supported files extensions
 	 */
-	const SUPPORTED_EXTENSIONS = ['jpg'];
+	const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'bmp'];
 
 	/**
 	 * @var int
@@ -20,6 +20,11 @@ class Pixelart {
 	 * @var null
 	 */
 	protected $image = null;
+
+	/**
+	 * @var string
+	 */
+	protected $extension = '';
 
 	/**
 	 * @var array
@@ -67,14 +72,17 @@ class Pixelart {
 
 	/**
 	 * @param string $filepath
+	 * @param string $savePathAndName
 	 *
-	 * @return void
 	 * @throws Exception
 	 */
 	public function pixelize(string $filepath, string $savePathAndName) {
 		if (!$this->checkIfFileExists($filepath)) {
 			throw new Exception('File "' . $filepath . '" could not be found.');
+		} else {
+			$this->setExtension($this->getFileExtensionFromPath($filepath));
 		}
+
 		if (!$this->checkIfFileExtensionIsSupported($filepath)) {
 			throw new Exception('Given file extension is not supported');
 		}
@@ -84,7 +92,7 @@ class Pixelart {
 		$colors = $this->cropImageAndGetColors();
 		$image = $this->createImageFromColorsInformations($colors);
 
-		imagejpeg($image, $savePathAndName);
+		$this->saveImage($image, $savePathAndName);
 	}
 
 	/**
@@ -101,7 +109,7 @@ class Pixelart {
 	 *
 	 * @return mixed
 	 */
-	protected function getFileExtension(string $filepath) {
+	protected function getFileExtensionFromPath(string $filepath) {
 		return pathinfo($filepath, PATHINFO_EXTENSION);
 	}
 
@@ -111,7 +119,7 @@ class Pixelart {
 	 * @return bool
 	 */
 	protected function checkIfFileExtensionIsSupported(string $filepath): bool {
-		return in_array($this->getFileExtension($filepath), self::SUPPORTED_EXTENSIONS);
+		return in_array($this->extension, self::SUPPORTED_EXTENSIONS);
 	}
 
 	/**
@@ -120,10 +128,19 @@ class Pixelart {
 	 * @return Pixelart
 	 */
 	protected function setImageResourceFromPath(string $filepath): self {
-		switch ($this->getFileExtension($filepath)) {
+		switch ($this->extension) {
 			case 'jpg':
 			case 'jpeg':
 				$this->image = imagecreatefromjpeg($filepath);
+				break;
+			case 'png':
+				$this->image = imagecreatefrompng($filepath);
+				break;
+			case 'gif':
+				$this->image = imagecreatefromgif($filepath);
+				break;
+			case 'bmp':
+				$this->image = imagecreatefrombmp($filepath);
 				break;
 		}
 
@@ -253,5 +270,38 @@ class Pixelart {
 		}
 
 		return $image;
+	}
+
+	/**
+	 * @param resource $image
+	 * @param string   $savePathAndName
+	 */
+	protected function saveImage($image, string $savePathAndName) {
+		switch ($this->extension) {
+			case 'jpg':
+			case 'jpeg':
+				imagejpeg($image, $savePathAndName);
+				break;
+			case 'png':
+				imagepng($image, $savePathAndName);
+				break;
+			case 'gif':
+				imagegif($image, $savePathAndName);
+				break;
+			case 'bmp':
+				imagebmp($image, $savePathAndName);
+				break;
+		}
+	}
+
+	/**
+	 * @param $extension
+	 *
+	 * @return Pixelart
+	 */
+	protected function setExtension($extension): self {
+		$this->extension = $extension;
+
+		return $this;
 	}
 }
